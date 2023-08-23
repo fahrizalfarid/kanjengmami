@@ -1,0 +1,426 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>kanjengmami: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/fahrizalfarid/kanjengmami/client.go (95.3%)</option>
+				
+				<option value="file1">github.com/fahrizalfarid/kanjengmami/encryption.go (81.1%)</option>
+				
+				<option value="file2">github.com/fahrizalfarid/kanjengmami/nameResolver.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package kanjengmami
+
+import (
+        "context"
+        "crypto/rsa"
+        "fmt"
+        "time"
+
+        "github.com/fahrizalfarid/kanjengmami/model"
+        "google.golang.org/grpc"
+        "google.golang.org/grpc/credentials/insecure"
+        "google.golang.org/grpc/metadata"
+)
+
+type Client struct {
+        Address               []string
+        SecretKey             string
+        PrivateKey, PublicKey string
+        privateKey            *rsa.PrivateKey
+        publicKey             *rsa.PublicKey
+}
+
+func NewClient(address []string, SecretKey string,
+        privateKeyPath, publicKeyPath string) *Client <span class="cov8" title="1">{
+        c := &amp;Client{
+                Address:    address,
+                SecretKey:  SecretKey,
+                PrivateKey: privateKeyPath,
+                PublicKey:  publicKeyPath,
+        }
+
+        if len(c.PublicKey) != 0 &amp;&amp; len(c.PrivateKey) != 0 </span><span class="cov8" title="1">{
+                err := c.loadPem()
+                if err != nil </span><span class="cov8" title="1">{
+                        panic(err)</span>
+                }
+        }
+
+        <span class="cov8" title="1">addrs = c.Address
+        initNameResolver()
+        return c</span>
+}
+
+func (c *Client) conn() (*grpc.ClientConn, error) <span class="cov8" title="1">{
+        if len(c.SecretKey) == 0 || len(c.Address) == 0 </span><span class="cov8" title="1">{
+                return nil, ErrInvalidKeyAndServer
+        }</span>
+
+        <span class="cov8" title="1">cn, _ := grpc.Dial(fmt.Sprintf("%s:///%s", scheme, serviceName),
+                grpc.WithDefaultServiceConfig(roundRobin),
+                grpc.WithTransportCredentials(
+                        insecure.NewCredentials(),
+                ))
+
+        try := 0
+        ticker := time.NewTicker(1 * time.Millisecond)
+        defer ticker.Stop()
+
+        for range ticker.C </span><span class="cov8" title="1">{
+                state := cn.GetState()
+                if state == 2 </span><span class="cov8" title="1">{
+                        break</span>
+                }
+                <span class="cov8" title="1">if try &gt;= 5 </span><span class="cov8" title="1">{
+                        return nil, ErrInvalidServers
+                }</span>
+                <span class="cov8" title="1">try++</span>
+        }
+
+        <span class="cov8" title="1">return cn, nil</span>
+}
+
+func (c *Client) cachingClient(conn *grpc.ClientConn, ctx context.Context) (model.CachingClient, context.Context) <span class="cov8" title="1">{
+        md := metadata.Pairs("secret-key", c.SecretKey)
+        ctx = metadata.NewOutgoingContext(
+                ctx, md,
+        )
+        return model.NewCachingClient(conn), ctx
+}</span>
+
+func (c *Client) Set(ctx context.Context, req *model.CacheRequest) error <span class="cov8" title="1">{
+        if req.TtlInSecond &lt;= 0 </span><span class="cov8" title="1">{
+                // set to one hour
+                req.TtlInSecond = 60 * 60
+        }</span>
+
+        <span class="cov8" title="1">conn, err := c.conn()
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        <span class="cov8" title="1">defer conn.Close()
+
+        m, ctx := c.cachingClient(conn, ctx)
+        _, err = m.Put(ctx, req)
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (c *Client) SetWithSecure(ctx context.Context, req *model.CacheRequest) error <span class="cov8" title="1">{
+        if req.TtlInSecond &lt;= 0 </span><span class="cov8" title="1">{
+                // set to one hour
+                req.TtlInSecond = 60 * 60
+        }</span>
+
+        <span class="cov8" title="1">encryptedData, err := c.encryptPacket(req.Data)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">req.Data = encryptedData
+
+        conn, err := c.conn()
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        <span class="cov8" title="1">defer conn.Close()
+
+        m, ctx := c.cachingClient(conn, ctx)
+        _, err = m.Put(ctx, req)
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (c *Client) Get(ctx context.Context, req *model.CacheRequestKey) (*model.CacheResponse, error) <span class="cov8" title="1">{
+        if len(req.Key) == 0 </span><span class="cov8" title="1">{
+                return nil, ErrInvalidKey
+        }</span>
+
+        <span class="cov8" title="1">conn, err := c.conn()
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">defer conn.Close()
+
+        m, ctx := c.cachingClient(conn, ctx)
+        data, err := m.Get(ctx, req)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data, nil</span>
+}
+
+func (c *Client) GetWithSecure(ctx context.Context, req *model.CacheRequestKey) (*model.CacheResponse, error) <span class="cov8" title="1">{
+        if len(req.Key) == 0 </span><span class="cov8" title="1">{
+                return nil, ErrInvalidKey
+        }</span>
+
+        <span class="cov8" title="1">conn, err := c.conn()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">defer conn.Close()
+
+        m, ctx := c.cachingClient(conn, ctx)
+        data, err := m.Get(ctx, req)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">decryptedData, err := c.decryptPacket(data.Data)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">return &amp;model.CacheResponse{
+                Key:  data.Key,
+                Data: decryptedData,
+        }, nil</span>
+}
+
+func (c *Client) Delete(ctx context.Context, req *model.CacheRequestKey) error <span class="cov8" title="1">{
+        if len(req.Key) == 0 </span><span class="cov8" title="1">{
+                return ErrInvalidKey
+        }</span>
+
+        <span class="cov8" title="1">conn, err := c.conn()
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">defer conn.Close()
+
+        m, ctx := c.cachingClient(conn, ctx)
+        _, _ = m.Delete(ctx, req)
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package kanjengmami
+
+import (
+        "crypto/rand"
+        "crypto/rsa"
+        "crypto/sha256"
+        "crypto/x509"
+        "encoding/pem"
+        "os"
+)
+
+func (c *Client) loadPem() error <span class="cov8" title="1">{
+        if len(c.PublicKey) == 0 </span><span class="cov8" title="1">{
+                return ErrInvalidPublicKeyPath
+        }</span>
+
+        <span class="cov8" title="1">if len(c.PrivateKey) == 0 </span><span class="cov8" title="1">{
+                return ErrInvalidPrivateKeyPath
+        }</span>
+
+        <span class="cov8" title="1">privKey, err := os.ReadFile(c.PrivateKey)
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        <span class="cov8" title="1">pubKey, err := os.ReadFile(c.PublicKey)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">privBlock, _ := pem.Decode(privKey)
+        if privBlock == nil </span><span class="cov0" title="0">{
+                return ErrInvalidPrivateBlock
+        }</span>
+
+        <span class="cov8" title="1">privRsa, err := x509.ParsePKCS1PrivateKey(privBlock.Bytes)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">pubBlock, _ := pem.Decode(pubKey)
+        if err != nil </span><span class="cov0" title="0">{
+                return ErrInvalidPublicBlock
+        }</span>
+        <span class="cov8" title="1">pubRsa, err := x509.ParsePKIXPublicKey(pubBlock.Bytes)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">c.privateKey = privRsa
+        c.publicKey = pubRsa.(*rsa.PublicKey)
+
+        return nil</span>
+}
+
+func (c *Client) encryptPacket(data []byte) ([]byte, error) <span class="cov8" title="1">{
+        if c.publicKey == nil </span><span class="cov8" title="1">{
+                return nil, ErrInvalidPublicKey
+        }</span>
+
+        <span class="cov8" title="1">encryptedData, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, c.publicKey, data, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return encryptedData, nil</span>
+}
+
+func (c *Client) decryptPacket(encryptedData []byte) ([]byte, error) <span class="cov8" title="1">{
+        if c.privateKey == nil </span><span class="cov8" title="1">{
+                return nil, ErrInvalidPrivateKey
+        }</span>
+
+        <span class="cov8" title="1">data, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, c.privateKey, encryptedData, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return data, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package kanjengmami
+
+import "google.golang.org/grpc/resolver"
+
+const (
+        scheme      = "kanjengmami"
+        serviceName = "caching.grpc.io"
+        roundRobin  = `{"loadBalancingConfig": [{"round_robin":{}}]}`
+)
+
+var addrs []string
+
+type resolverBuilder struct{}
+type nameResolver struct {
+        target resolver.Target
+        cc     resolver.ClientConn
+        addrs  map[string][]string
+}
+
+func (*resolverBuilder) Scheme() string <span class="cov8" title="1">{ return scheme }</span>
+func (r *nameResolver) start() <span class="cov8" title="1">{
+        addrStrs := r.addrs[r.target.Endpoint()]
+        addrss := make([]resolver.Address, len(addrStrs))
+        for i, s := range addrStrs </span><span class="cov8" title="1">{
+                addrss[i] = resolver.Address{Addr: s}
+        }</span>
+        <span class="cov8" title="1">r.cc.UpdateState(resolver.State{
+                Addresses: addrss,
+        })</span>
+}
+
+func (*nameResolver) ResolveNow(o resolver.ResolveNowOptions) {<span class="cov8" title="1">}</span>
+func (*nameResolver) Close()                                  {<span class="cov8" title="1">}</span>
+
+func (*resolverBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) <span class="cov8" title="1">{
+        r := &amp;nameResolver{
+                target: target,
+                cc:     cc,
+                addrs: map[string][]string{
+                        serviceName: addrs,
+                },
+        }
+        r.start()
+        return r, nil
+}</span>
+
+func initNameResolver() <span class="cov8" title="1">{
+        resolver.Register(&amp;resolverBuilder{})
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

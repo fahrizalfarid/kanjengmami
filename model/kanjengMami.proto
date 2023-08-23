@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+option go_package = "github.com/fahrizalfarid/kanjengmami/model";
+
+package model;
+
+service Caching {
+  rpc Put (CacheRequest) returns (Error) {}
+  rpc Get (CacheRequestKey) returns (CacheResponse) {}
+  rpc Delete (CacheRequestKey) returns (Error) {}
+}
+
+message CacheRequest {
+  string key = 1;
+  bytes data = 2;
+  int64 ttl_in_second = 3;
+}
+
+message CacheResponse {
+    string key = 1;
+    bytes data = 2;
+}
+
+message CacheRequestKey {
+    string key = 1;
+}
+
+message Error {
+    string err = 1;
+}

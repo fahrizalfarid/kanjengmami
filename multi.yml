@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  kanjengmami-leader:
+    image: fahrizalfarid/kanjeng-mami
+    container_name: kanjengmami-leader
+    command:
+      - "--api-port=1081"
+      - "--cluster-id=128"
+      - "--secret-key=sEcr3t"
+      - "-a=1@127.0.0.1:8081"
+      - "--join=0"
+      - "-c=1@127.0.0.1:8081"
+      - "-c=2@127.0.0.1:8082"
+      - "-c=3@127.0.0.1:8083"
+    ports:
+      - 1081:1081
+      - 127.0.0.1:8081:8081
+    restart: always
+
+  kanjengmami-0:
+    image: fahrizalfarid/kanjeng-mami
+    container_name: kanjengmami-0
+    command:
+      - "--api-port=1082"
+      - "--cluster-id=128"
+      - "--secret-key=sEcr3t"
+      - "-a=1@127.0.0.1:8082"
+      - "--join=1"  
+    ports:
+      - 1082:1082
+      - 127.0.0.1:8082:8082
+    
+    restart: always
+
+  kanjengmami-1:
+    image: fahrizalfarid/kanjeng-mami
+    container_name: kanjengmami-1
+    command:
+      - "--api-port=1083"
+      - "--cluster-id=128"
+      - "--secret-key=sEcr3t"
+      - "-a=1@127.0.0.1:8083"
+      - "--join=1"
+    ports:
+      - 1083:1083
+      - 127.0.0.1:8083:8083
+    restart: always
